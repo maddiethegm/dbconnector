@@ -50,6 +50,14 @@ async function testQuery(table, operation, params) {
         console.error('Error executing query:', error.response ? error.response.data : error.message);
     }
 }
+...
+    const ID = generateUUID();
+    await testQuery('Test', 'CREATE', { 
+        Name: 'Test Item',
+        Text: 'A sample item created with ID: ' + ID,
+        ID: ID
+        // Add other necessary fields here based on your schema
+    });
 ```
 
 The following environment variables are used to control the operation of the DB connector:
