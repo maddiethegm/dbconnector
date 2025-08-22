@@ -61,7 +61,16 @@ async function testQuery(table, operation, params) {
     } );
 
     // READ: See all rows in a table
-    await testQuery('Test', 'READ');
+    await testQuery('Test', 'READ', {
+        Name: 'Tested item name',
+    });
+
+    // READ: See all rows in a table
+    await testQuery('Test', 'READ', {
+        partialMatch: true,
+        Name: 'Test',
+    });
+
 
     // DELETE: Ensure the ID is present
     await testQuery('Test', 'DELETE', { 

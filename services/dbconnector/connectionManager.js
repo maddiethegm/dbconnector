@@ -47,7 +47,7 @@ function getDBConfig(dbType) {
                 database: process.env.DB_DATABASE,
                 options: {
                     encrypt: true, // for secure connection
-                    trustServerCertificate: process.env.DB_TRUST_CERT
+                    trustServerCertificate: true
                 }
             };
         case 'ORACLE':

@@ -93,7 +93,7 @@ function validateCompareParams(params) {
     if (!params || typeof params !== 'object' || !params.compareTable || !params.idField) {
         throw new Error('Missing or invalid parameters for COMPARE operation. Please provide an object with "compareTable" and "idField" fields.');
     }
-}*/
+}*/ 
 
 /**
  * Generates a CREATE SQL query string based on database type, table, and parameters.
@@ -144,22 +144,43 @@ function generateReadQuery(dbType, table, params) {
     // Prepare an array to hold WHERE conditions
     const whereConditions = [];
 
-    // Iterate over each parameter in params
     for (const key in params) {
-        if (params.hasOwnProperty(key)) {
-            const value = params[key];
-            
-            // Construct the condition based on dbType
+        if (params[key]) {
             let condition;
+            if (key === 'partialMatch') continue; // Skip the partialSearch flag
+
             switch (dbType.toUpperCase()) {
                 case 'MSSQL':
-                    condition = `${key} = @${key}`;
+                    if (params.partialMatch) {
+                        condition = `${key} LIKE '%' + @${key} + '%'`;
+                        params[key] = `%${params[key]}%`; // Add % wildcard in params
+                    } else {
+                        condition = `${key} = @${key}`;
+                    }
+                    break;
+                case 'ORACLE':
+                    if (params.partialMatch) {
+                        condition = `${key} LIKE '%' || :${key} || '%'`;
+                        params[key] = `%${params[key]}%`; // Add % wildcard in params
+                    } else {
+                        condition = `${key} = :${key}`;
+                    }
                     break;
                 case 'POSTGRES':
-                    condition = `${key} = $1`;
+                    if (params.partialMatch) {
+                        condition = `${key} LIKE $1`;
+                        params[key] = `%${params[key]}%`; // Add % wildcard in params
+                    } else {
+                        condition = `${key} = $1`;
+                    }
                     break;
                 case 'MARIADB':
-                    condition = `${key} = ?`;
+                    if (params.partialMatch) {
+                        condition = `${key} LIKE ?`;
+                        params[key] = `%${params[key]}%`; // Add % wildcard in params
+                    } else {
+                        condition = `${key} = ?`;
+                    }
                     break;
                 default:
                     throw new Error('Unsupported database type');
@@ -176,7 +197,6 @@ function generateReadQuery(dbType, table, params) {
 
     return query;
 }
-
 
 /**
  * Generates a UPDATE SQL query string based on database type, table, and parameters.
@@ -220,8 +240,6 @@ async function generateUpdateQuery(dbType, table, params) {
 
     return `UPDATE ${table} SET ${updateClause} ${whereClause};`;
 }
-
-
 
 /**
  * Generates a DELETE SQL query string based on database type, table, and parameters.

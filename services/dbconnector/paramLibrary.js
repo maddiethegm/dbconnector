@@ -3,6 +3,14 @@
 const sql = require('mssql');
 const oracledb = require('oracledb');
 
+// Load paramsConfig.json once at the start
+let paramsConfig;
+try {
+    paramsConfig = require('./paramsConfig.json');
+} catch (error) {
+    console.error('Error reading JSON config:', error);
+}
+
 /**
  * Formats query parameters based on their keys and types, specific to each database type.
  *
@@ -18,16 +26,16 @@ async function formatQueryParams(params) {
 
     switch (DB_TYPE.toUpperCase()) {
         case 'MSSQL':
-            formattedParams = formatMSSQLParams(params);
+            formattedParams = formatMSSQLParams(params, paramsConfig.mssql);
             break;
         case 'ORACLE':
-            formattedParams = formatOracleParams(params);
+            formattedParams = formatOracleParams(params, paramsConfig.oracle);
             break;
         case 'MARIADB':
-            formattedParams = formatMariaDBParams(params);
+            formattedParams = formatMariaDBParams(params, paramsConfig.mariaDB);
             break;
         case 'POSTGRES':
-            formattedParams = formatPostgresParams(params);
+            formattedParams = formatPostgresParams(params, paramsConfig.postgres);
             break;
         default:
             throw new Error('Unsupported database type');
@@ -41,66 +49,90 @@ async function formatQueryParams(params) {
  * Formats query parameters for MSSQL.
  *
  * @param {Object} params - An object containing the parameters to format.
+ * @param {Object} config - Database-specific configuration from JSON.
  * @returns {Object} Formatted parameters.
  */
-function formatMSSQLParams(params) {
+function formatMSSQLParams(params, config) {
     const formattedParams = {};
     for (const key in params) {
-        if (key === 'ID') {
-            console.log(`Formatting ID: ${params[key]}`); // Debugging log
-            formattedParams[key] = { type: sql.UniqueIdentifier, value: params[key] };
-        } else if (
-            ['Name', 'Description', 'Building', 'Owner', 'Role', 'Location', 'Route', 'Email', 'DisplayName', 'Team'].includes(key)
-        ) {
-            formattedParams[key] = { type: sql.NVarChar(255), value: params[key] };
-        } else if (key === 'Username' || key === 'AuthenticatedUsername') {
-            formattedParams[key] = { type: sql.NVarChar(50), value: params[key].toLowerCase() }; // Normalize to lowercase
-        } else if (key === 'UITheme' || key === 'UITHeme') {
-            formattedParams[key] = { type: sql.NVarChar(50), value: params[key] };
-        } else if (['Bio', 'PasswordHash', 'Image', 'AvatarURL'].includes(key)) {
-            formattedParams[key] = { type: sql.Text, value: params[key] };
-        } else if (key === 'SQL_USER') {
-            formattedParams[key] = { type: sql.Bit, value: params[key] }; // Support for bit data type
-        } else if (typeof params[key] === 'string') {
-            formattedParams[key] = { type: sql.NVarChar(255), value: params[key] };
-        } else if (typeof params[key] === 'number') {
-            formattedParams[key] = { type: sql.Int, value: params[key] };
+        if (!config[key]) {
+            console.warn(`Parameter '${key}' not defined in the configuration.`);
+            continue;
         }
+
+        const paramConfig = config[key];
+        let type;
+
+        switch (paramConfig.type.toLowerCase()) {
+            case 'uniqueidentifier':
+                type = sql.UniqueIdentifier;
+                break;
+            case 'nvarchar':
+                if (!paramConfig.maxLength) {
+                    throw new Error(`Parameter '${key}' is missing maxLength in configuration.`);
+                }
+                type = sql.NVarChar(paramConfig.maxLength);
+                break;
+            case 'text':
+                type = sql.Text;
+                break;
+            case 'int':
+                type = sql.Int;
+                break;
+            case 'bit':
+                type = sql.Bit;
+                break;
+            default:
+                throw new Error(`Unsupported parameter type: ${paramConfig.type} for parameter '${key}'`);
+        }
+
+        formattedParams[key] = { type, value: params[key] };
     }
     return formattedParams;
 }
-
-// ... rest of the file ...
-
 
 /**
  * Formats query parameters for Oracle.
  *
  * @param {Object} params - An object containing the parameters to format.
+ * @param {Object} config - Database-specific configuration from JSON.
  * @returns {Object} Formatted parameters.
  */
-function formatOracleParams(params) {
+function formatOracleParams(params, config) {
     const formattedParams = {};
     for (const key in params) {
-        if (key === 'ID') {
-            formattedParams[key] = { type: oracledb.STRING, value: params[key] }; // UUID can be handled as a string
-        } else if (
-            ['Name', 'Description', 'Building', 'Owner', 'Role', 'Location', 'Route', 'Email', 'DisplayName', 'Team'].includes(key)
-        ) {
-            formattedParams[key] = { type: oracledb.STRING, value: params[key] };
-        } else if (key === 'Username' || key === 'AuthenticatedUsername') {
-            formattedParams[key] = { type: oracledb.STRING, value: params[key].toLowerCase() }; // Normalize to lowercase
-        } else if (key === 'UITheme' || key === 'UITHeme') {
-            formattedParams[key] = { type: oracledb.STRING, value: params[key] };
-        } else if (['Bio', 'PasswordHash', 'Image', 'AvatarURL'].includes(key)) {
-            formattedParams[key] = { type: oracledb.CLOB, value: params[key] };
-        } else if (key === 'SQL_USER') {
-            formattedParams[key] = { type: oracledb.BOOLEAN, value: params[key] }; // Support for bit data type
-        } else if (typeof params[key] === 'string') {
-            formattedParams[key] = { type: oracledb.STRING, value: params[key] };
-        } else if (typeof params[key] === 'number') {
-            formattedParams[key] = { type: oracledb.NUMBER, value: params[key] };
+        if (!config[key]) {
+            console.warn(`Parameter '${key}' not defined in the configuration.`);
+            continue;
         }
+
+        const paramConfig = config[key];
+        let type;
+
+        switch (paramConfig.type.toLowerCase()) {
+            case 'string':
+                type = oracledb.STRING;
+                break;
+            case 'varchar2':
+                if (!paramConfig.maxLength) {
+                    throw new Error(`Parameter '${key}' is missing maxLength in configuration.`);
+                }
+                type = oracledb.VARCHAR2(paramConfig.maxLength);
+                break;
+            case 'clob':
+                type = oracledb.CLOB;
+                break;
+            case 'number':
+                type = oracledb.NUMBER;
+                break;
+            case 'boolean':
+                type = oracledb.BOOLEAN;
+                break;
+            default:
+                throw new Error(`Unsupported parameter type: ${paramConfig.type} for parameter '${key}'`);
+        }
+
+        formattedParams[key] = { type, value: params[key] };
     }
     return formattedParams;
 }
@@ -109,30 +141,47 @@ function formatOracleParams(params) {
  * Formats query parameters for MariaDB.
  *
  * @param {Object} params - An object containing the parameters to format.
+ * @param {Object} config - Database-specific configuration from JSON.
  * @returns {Object} Formatted parameters.
  */
-function formatMariaDBParams(params) {
+function formatMariaDBParams(params, config) {
     const formattedParams = {};
     for (const key in params) {
-        if (key === 'ID') {
-            formattedParams[key] = { type: 'char', value: params[key] }; // UUID can be handled as a string
-        } else if (
-            ['Name', 'Description', 'Building', 'Owner', 'Role', 'Location', 'Route', 'Email', 'DisplayName', 'Team'].includes(key)
-        ) {
-            formattedParams[key] = { type: 'string', value: params[key] };
-        } else if (key === 'Username' || key === 'AuthenticatedUsername') {
-            formattedParams[key] = { type: 'string', value: params[key].toLowerCase() }; // Normalize to lowercase
-        } else if (key === 'UITheme' || key === 'UITHeme') {
-            formattedParams[key] = { type: 'string', value: params[key] };
-        } else if (['Bio', 'PasswordHash', 'Image', 'AvatarURL'].includes(key)) {
-            formattedParams[key] = { type: 'text', value: params[key] };
-        } else if (key === 'SQL_USER') {
-            formattedParams[key] = { type: 'boolean', value: params[key] }; // Support for bit data type
-        } else if (typeof params[key] === 'string') {
-            formattedParams[key] = { type: 'string', value: params[key] };
-        } else if (typeof params[key] === 'number') {
-            formattedParams[key] = { type: 'int', value: params[key] };
+        if (!config[key]) {
+            console.warn(`Parameter '${key}' not defined in the configuration.`);
+            continue;
         }
+
+        const paramConfig = config[key];
+        let type;
+
+        switch (paramConfig.type.toLowerCase()) {
+            case 'char':
+                if (!paramConfig.length) {
+                    throw new Error(`Parameter '${key}' is missing length in configuration.`);
+                }
+                type = { type: 'CHAR', length: paramConfig.length };
+                break;
+            case 'uuid':
+                type = 'uuid';
+                break;
+            case 'string':
+                type = 'string';
+                break;
+            case 'text':
+                type = 'text';
+                break;
+            case 'int':
+                type = 'int';
+                break;
+            case 'boolean':
+                type = 'boolean';
+                break;
+            default:
+                throw new Error(`Unsupported parameter type: ${paramConfig.type} for parameter '${key}'`);
+        }
+
+        formattedParams[key] = { type, value: params[key] };
     }
     return formattedParams;
 }
@@ -141,32 +190,47 @@ function formatMariaDBParams(params) {
  * Formats query parameters for PostgreSQL.
  *
  * @param {Object} params - An object containing the parameters to format.
+ * @param {Object} config - Database-specific configuration from JSON.
  * @returns {Object} Formatted parameters.
  */
-function formatPostgresParams(params) {
+function formatPostgresParams(params, config) {
     const formattedParams = {};
     for (const key in params) {
-        if (key === 'ID') {
-            formattedParams[key] = { type: 'uuid', value: params[key] };
-        } else if (
-            ['Name', 'Description', 'Building', 'Owner', 'Role', 'Location', 'Route', 'Email', 'DisplayName', 'Team'].includes(key)
-        ) {
-            formattedParams[key] = { type: 'varchar', value: params[key] };
-        } else if (key === 'Username' || key === 'AuthenticatedUsername') {
-            formattedParams[key] = { type: 'varchar', value: params[key].toLowerCase() }; // Normalize to lowercase
-        } else if (key === 'UITheme' || key === 'UITHeme') {
-            formattedParams[key] = { type: 'varchar', value: params[key] };
-        } else if (['Bio', 'PasswordHash', 'Image', 'AvatarURL'].includes(key)) {
-            formattedParams[key] = { type: 'text', value: params[key] };
-        } else if (key === 'SQL_USER') {
-            formattedParams[key] = { type: 'boolean', value: params[key] }; // Support for bit data type
-        } else if (typeof params[key] === 'string') {
-            formattedParams[key] = { type: 'varchar', value: params[key] };
-        } else if (typeof params[key] === 'number') {
-            formattedParams[key] = { type: 'int', value: params[key] };
+        if (!config[key]) {
+            console.warn(`Parameter '${key}' not defined in the configuration.`);
+            continue;
         }
+
+        const paramConfig = config[key];
+        let type;
+
+        switch (paramConfig.type.toLowerCase()) {
+            case 'uuid':
+                type = 'uuid';
+                break;
+            case 'varchar':
+                if (!paramConfig.length) {
+                    throw new Error(`Parameter '${key}' is missing length in configuration.`);
+                }
+                type = { type: 'VARCHAR', length: paramConfig.length };
+                break;
+            case 'text':
+                type = 'text';
+                break;
+            case 'int':
+                type = 'int';
+                break;
+            case 'boolean':
+                type = 'boolean';
+                break;
+            default:
+                throw new Error(`Unsupported parameter type: ${paramConfig.type} for parameter '${key}'`);
+        }
+
+        formattedParams[key] = { type, value: params[key] };
     }
     return formattedParams;
 }
 
 module.exports = { formatQueryParams };
+
