@@ -2,7 +2,7 @@
 This set of modules is intended to serve as a general purpose toolkit for building Node.js applications with a database-type agnostic SQL backend. The audience at creation is myself, as I wanted a reusable module for communicating with my SQL backends in Node.js projects.
 
 ## Features
-At the moment, CRUD operations against Microsoft SQL Server and MariaDB servers are supported. I plan to implement support for interoperability with Postgres, Oracle, and MongoDB as well to provide the most possible utility in this package. An example implementation is available in the included server.js:
+At the moment, CRUD operations against Microsoft SQL Server and MariaDB servers are supported. I plan to implement support for interoperability with Postgres, Oracle, and MongoDB as well to provide the most possible utility in this package. An example implementation server.js:
 
 ```javascript
 // server.js
@@ -35,9 +35,13 @@ app.listen(PORT, () => {
 });
 ```
 
-Additionally, the script `client.js` which runs simulated interactions with the server.js contains the following example for a request to the sample API route:
+Additionally, here's an example client.js script to test the database connector:
 
 ```javascript
+// client.js
+
+const axios = require('axios');
+const generateUUID = require('uuid').v4;
 async function testQuery(table, operation, params) {
     try {
         const response = await axios.post('http://localhost:3100/api/query', {
@@ -50,14 +54,68 @@ async function testQuery(table, operation, params) {
         console.error('Error executing query:', error.response ? error.response.data : error.message);
     }
 }
-...
-    const ID = generateUUID();
+
+// Example usage:
+(async () => {
+    // CREATE: Ensure all required fields are present
+    const ID1 = generateUUID();
+    const ID2 = generateUUID();
+    const ID3 = generateUUID();
+
     await testQuery('Test', 'CREATE', { 
         Name: 'Test Item',
-        Text: 'A sample item created with ID: ' + ID,
-        ID: ID
+        Text: 'A sample item created with ID: ' + ID1,
+        ID: ID1
         // Add other necessary fields here based on your schema
     });
+    await testQuery('Test', 'CREATE', { 
+        Name: 'Test Item',
+        Text: 'A sample item created with ID: ' + ID2,
+        ID: ID2
+        // Add other necessary fields here based on your schema
+    });
+    await testQuery('Test', 'CREATE', { 
+        Name: 'Test Item',
+        Text: 'A sample item created wth ID: ' + ID3,
+        ID: ID3
+        // Add other necessary fields here based on your schema
+    });
+    await testQuery('Test', 'CREATE', { 
+        Name: 'Test Item',
+        Text: 'A sample item created with ID: ' + ID4,
+        ID: ID4
+        // Add other necessary fields here based on your schema
+    });
+
+    // UPDATE: Ensure both the ID and at least one field to update are present. ID must be the LAST field.
+    await testQuery('Test', 'UPDATE', {
+        Name: 'Tested item name',  
+        Text: 'Updated item text successfully for item: ' + ID2,
+        ID: ID2
+    });
+
+    // READ: Ensure the ID is present
+    await testQuery('Test', 'READ', {
+        ID : ID1
+    } );
+
+    // READ: See all rows in a table
+    await testQuery('Test', 'READ', {
+        Name: 'Tested item name',
+    });
+
+    // READ: See all rows in a table
+    await testQuery('Test', 'READ', {
+        partialMatch: true,
+        Name: 'Test',
+    });
+
+
+    // DELETE: Ensure the ID is present
+    await testQuery('Test', 'DELETE', { 
+        ID: ID3
+    });
+})();
 ```
 
 The following environment variables are used to control the operation of the DB connector:

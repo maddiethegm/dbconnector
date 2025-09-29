@@ -33,6 +33,9 @@ async function generateQuery(table, operation, params) {
             validateCompareParams(params);
             query = generateCompareQuery(DB_TYPE, table, params);
             break; */
+        case 'TEST':
+            query = generateTestQuery(DB_TYPE);
+            break;
         default:
             throw new Error('Unsupported operation');
     }
@@ -266,6 +269,26 @@ async function generateDeleteQuery(dbType, table, params) {
     }
 }
 
+/**
+ * Generates a TEST SQL query string based on database type, table, and parameters.
+ *
+ * @param {string} dbType - Type of database (e.g., 'MSSQL', 'ORACLE').
+ * @returns {Promise<string>} The constructed DELETE SQL query string.
+ */
+async function generateTestQuery(dbType) {
+    switch (dbType.toUpperCase()) {
+        case 'MSSQL':
+            return `SELECT @@SPID;`;
+        case 'POSTGRES':
+            return `SELECT pg_backend_pid();`; // Use $1 for PostgreSQL
+        case 'MARIADB':
+            return `SELECT CONNECTION_ID();`;
+        case 'ORACLE':
+            return `SELECT SYS_CONTEXT('USERENV', 'SESSIONID') FROM dual;`;
+        default:
+            throw new Error('Unsupported database type!');
+    }
+}
 /*
 *
 * I intend to implement "compare" functionality but haven't yet decided how to do so. This is some spitballed code that I came up with for this exercise, and I hope to complete work on it in the future.
