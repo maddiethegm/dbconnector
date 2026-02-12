@@ -2,9 +2,7 @@
 
 require('dotenv').config();
 const sql = require('mssql');
-const oracledb = require('oracledb');
 const mysql = require('mysql2/promise');
-const { Client } = require('pg');
 
 /**
  * Gets a connection based on the configured database type.
@@ -18,14 +16,8 @@ async function getConnection() {
     switch (dbType) {
         case 'MSSQL':
             return await sql.connect(config);
-        case 'ORACLE':
-            return await oracledb.getConnection(config);
         case 'MARIADB':
             return await mysql.createConnection(config);
-        case 'POSTGRES':
-            const client = new Client(config);
-            await client.connect();
-            return client;
         default:
             throw new Error('Unsupported database type');
     }
@@ -50,12 +42,6 @@ function getDBConfig(dbType) {
                     trustServerCertificate: true
                 }
             };
-        case 'ORACLE':
-            return {
-                user: process.env.DB_USER,
-                password: process.env.DB_PASSWORD,
-                connectString: process.env.ORACLE_CONNECTION_STRING
-            };
         case 'MARIADB':
             return {
                 host: process.env.DB_SERVER,
@@ -64,14 +50,6 @@ function getDBConfig(dbType) {
                 password: process.env.DB_PASSWORD,
                 database: process.env.DB_DATABASE,
                 namedPlaceholders: true
-            };
-        case 'POSTGRES':
-            return {
-                host: process.env.DB_SERVER,
-                port: parseInt(process.env.DB_PORT, 10) || 5432,
-                user: process.env.DB_USER,
-                password: process.env.DB_PASSWORD,
-                database: process.env.DB_DATABASE
             };
         default:
             throw new Error('Unsupported database type');

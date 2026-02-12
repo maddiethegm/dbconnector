@@ -117,14 +117,9 @@ function generateCreateQuery(dbType, table, params) {
                 .map(key => `@${key}`)
                 .join(', ');
             break;
-        case 'POSTGRES':
-            placeholders = Object.keys(params).map(() => '?').join(', '); // Use ? for PostgreSQL
-            break;
         case 'MARIADB':
             placeholders = Object.keys(params).map(() => `?`).join(', '); // Use ? for MariaDB
             break;
-        case 'ORACLE':
-            throw new Error('CREATE operation is not supported for ORACLE in this implementation.');
         default:
             throw new Error('Unsupported database type for this operation!');     
     }
@@ -159,22 +154,6 @@ function generateReadQuery(dbType, table, params) {
                         params[key] = `%${params[key]}%`; // Add % wildcard in params
                     } else {
                         condition = `${key} = @${key}`;
-                    }
-                    break;
-                case 'ORACLE':
-                    if (params.partialMatch) {
-                        condition = `${key} LIKE '%' || :${key} || '%'`;
-                        params[key] = `%${params[key]}%`; // Add % wildcard in params
-                    } else {
-                        condition = `${key} = :${key}`;
-                    }
-                    break;
-                case 'POSTGRES':
-                    if (params.partialMatch) {
-                        condition = `${key} LIKE $1`;
-                        params[key] = `%${params[key]}%`; // Add % wildcard in params
-                    } else {
-                        condition = `${key} = $1`;
                     }
                     break;
                 case 'MARIADB':
@@ -231,9 +210,6 @@ async function generateUpdateQuery(dbType, table, params) {
         case 'MSSQL':
             whereClause = `WHERE ID = @ID`;
             break;
-        case 'POSTGRES':
-            whereClause = `WHERE ID = $2`;
-            break;
         case 'MARIADB':
             whereClause = `WHERE ID = ?`;
             break;
@@ -258,12 +234,8 @@ async function generateDeleteQuery(dbType, table, params) {
     switch (dbType.toUpperCase()) {
         case 'MSSQL':
             return `DELETE FROM ${table} WHERE ID = @ID;`;
-        case 'POSTGRES':
-            return `DELETE FROM ${table} WHERE ID = $1;`; // Use $1 for PostgreSQL
         case 'MARIADB':
             return `DELETE FROM ${table} WHERE ID = ?;`;
-        case 'ORACLE':
-            throw new Error('DELETE operation is not supported for ORACLE in this implementation.');
         default:
             throw new Error('Unsupported database type!');
     }
@@ -279,57 +251,10 @@ async function generateTestQuery(dbType) {
     switch (dbType.toUpperCase()) {
         case 'MSSQL':
             return `SELECT @@SPID;`;
-        case 'POSTGRES':
-            return `SELECT pg_backend_pid();`; // Use $1 for PostgreSQL
         case 'MARIADB':
             return `SELECT CONNECTION_ID();`;
-        case 'ORACLE':
-            return `SELECT SYS_CONTEXT('USERENV', 'SESSIONID') FROM dual;`;
         default:
             throw new Error('Unsupported database type!');
     }
 }
-/*
-*
-* I intend to implement "compare" functionality but haven't yet decided how to do so. This is some spitballed code that I came up with for this exercise, and I hope to complete work on it in the future.
-/**
- * Generates a COMPARE SQL query string based on database type, table, and parameters.
- *
- * @param {string} dbType - Type of database (e.g., 'MSSQL', 'ORACLE').
- * @param {Object} params - Parameters for the SQL query.
- * @returns {string} The constructed COMPARE SQL query string.
- *
-function generateCompareQuery(dbType, table, params) {
-    const { compareTable, idField } = params;
-    
-    switch (dbType.toUpperCase()) {
-        case 'MSSQL':
-            return `
-                SELECT a.*
-                FROM ${table} a
-                JOIN ${compareTable} b ON a.${idField} = b.${idField}
-            `;
-        case 'ORACLE':
-            return `
-                SELECT a.*
-                FROM ${table} a
-                JOIN ${compareTable} b ON a.${idField} = b.${idField}
-            `;
-        case 'POSTGRES':
-            return `
-                SELECT a.*
-                FROM ${table} a
-                JOIN ${compareTable} b ON a.${idField} = b.${idField}
-            `;
-        case 'MARIADB':
-            return `
-                SELECT a.*
-                FROM ${table} a
-                JOIN ${compareTable} b ON a.${idField} = b.${idField}
-            `;
-        default:
-            throw new Error('Unsupported database type');
-    }
-}*/
-
 module.exports = { generateQuery };

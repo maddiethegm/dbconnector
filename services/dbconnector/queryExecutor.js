@@ -32,20 +32,10 @@ async function executeQuery(table, operation, params) {
                 console.log('Formatted parameters for MSSQL:', formattedParams); // Log the formatted parameters
                 result = await executeMSSQLQuery(connection, query, formattedParams);
                 break;
-            case 'ORACLE':
-                console.log('Executing Oracle query:', query); // Debugging log
-                console.log('Formatted parameters for Oracle:', formattedParams); // Log the formatted parameters
-                result = await executeOracleQuery(connection, query, formattedParams);
-                break;
             case 'MARIADB':
                 console.log('Executing MariaDB query:', query); // Debugging log
                 console.log('Formatted parameters for MariaDB:', formattedParams); // Log the formatted parameters
                 result = await executeMariaDBQuery(connection, query, formattedParams);
-                break;
-            case 'POSTGRES':
-                console.log('Executing PostgreSQL query:', query); // Debugging log
-                console.log('Formatted parameters for PostgreSQL:', formattedParams); // Log the formatted parameters
-                result = await executePostgresQuery(connection, query, formattedParams);
                 break;
             default:
                 throw new Error('Unsupported database type');
@@ -91,30 +81,6 @@ async function executeMSSQLQuery(connection, query, params) {
     }
 }
 
-async function executeOracleQuery(connection, query, params) {
-    const binds = {};
-
-    // Bind each parameter with its name and value
-    Object.keys(params).forEach((key, index) => {
-        binds[`param${index + 1}`] = { type: params[key].type, val: params[key].value };
-    });
-
-    const options = {
-        outFormat: require('oracledb').OUT_FORMAT_OBJECT
-    };
-
-    try {
-        console.log('Executing Oracle query:', query); // Debugging log
-        console.log('Binding parameters for Oracle:', binds); // Debugging log
-        const result = await connection.execute(query, binds, options);
-        return { recordset: result.rows, affectedRows: result.rowsAffected };
-
-    } catch (error) {
-        console.error('Error executing Oracle query:', error.message);
-        throw error;
-    }
-}
-
 async function executeMariaDBQuery(connection, query, params) {
     try {
         // Extract parameter values in order
@@ -127,22 +93,6 @@ async function executeMariaDBQuery(connection, query, params) {
         return { recordset: result };
     } finally {
         await connection.end();
-    }
-}
-
-async function executePostgresQuery(connection, query, params) {
-    try {
-        // Extract parameter values in order
-        const paramValues = Object.keys(params).map(key => params[key].value);
-
-        console.log('Executing PostgreSQL query:', query); // Debugging log
-        console.log('Binding parameters for PostgreSQL:', paramValues); // Debugging log
-
-        const result = await connection.query(query, paramValues);
-        return { recordset: result.rows };
-    } catch (error) {
-        console.error('Error executing PostgreSQL query:', error.message);
-        throw error;
     }
 }
 

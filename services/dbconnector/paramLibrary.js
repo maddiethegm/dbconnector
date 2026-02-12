@@ -28,15 +28,11 @@ async function formatQueryParams(params) {
         case 'MSSQL':
             formattedParams = formatMSSQLParams(params, paramsConfig.mssql);
             break;
-        case 'ORACLE':
-            formattedParams = formatOracleParams(params, paramsConfig.oracle);
-            break;
+
         case 'MARIADB':
             formattedParams = formatMariaDBParams(params, paramsConfig.mariaDB);
             break;
-        case 'POSTGRES':
-            formattedParams = formatPostgresParams(params, paramsConfig.postgres);
-            break;
+
         default:
             throw new Error('Unsupported database type');
     }
@@ -91,51 +87,6 @@ function formatMSSQLParams(params, config) {
     return formattedParams;
 }
 
-/**
- * Formats query parameters for Oracle.
- *
- * @param {Object} params - An object containing the parameters to format.
- * @param {Object} config - Database-specific configuration from JSON.
- * @returns {Object} Formatted parameters.
- */
-function formatOracleParams(params, config) {
-    const formattedParams = {};
-    for (const key in params) {
-        if (!config[key]) {
-            console.warn(`Parameter '${key}' not defined in the configuration.`);
-            continue;
-        }
-
-        const paramConfig = config[key];
-        let type;
-
-        switch (paramConfig.type.toLowerCase()) {
-            case 'string':
-                type = oracledb.STRING;
-                break;
-            case 'varchar2':
-                if (!paramConfig.maxLength) {
-                    throw new Error(`Parameter '${key}' is missing maxLength in configuration.`);
-                }
-                type = oracledb.VARCHAR2(paramConfig.maxLength);
-                break;
-            case 'clob':
-                type = oracledb.CLOB;
-                break;
-            case 'number':
-                type = oracledb.NUMBER;
-                break;
-            case 'boolean':
-                type = oracledb.BOOLEAN;
-                break;
-            default:
-                throw new Error(`Unsupported parameter type: ${paramConfig.type} for parameter '${key}'`);
-        }
-
-        formattedParams[key] = { type, value: params[key] };
-    }
-    return formattedParams;
-}
 
 /**
  * Formats query parameters for MariaDB.
@@ -167,52 +118,6 @@ function formatMariaDBParams(params, config) {
                 break;
             case 'string':
                 type = 'string';
-                break;
-            case 'text':
-                type = 'text';
-                break;
-            case 'int':
-                type = 'int';
-                break;
-            case 'boolean':
-                type = 'boolean';
-                break;
-            default:
-                throw new Error(`Unsupported parameter type: ${paramConfig.type} for parameter '${key}'`);
-        }
-
-        formattedParams[key] = { type, value: params[key] };
-    }
-    return formattedParams;
-}
-
-/**
- * Formats query parameters for PostgreSQL.
- *
- * @param {Object} params - An object containing the parameters to format.
- * @param {Object} config - Database-specific configuration from JSON.
- * @returns {Object} Formatted parameters.
- */
-function formatPostgresParams(params, config) {
-    const formattedParams = {};
-    for (const key in params) {
-        if (!config[key]) {
-            console.warn(`Parameter '${key}' not defined in the configuration.`);
-            continue;
-        }
-
-        const paramConfig = config[key];
-        let type;
-
-        switch (paramConfig.type.toLowerCase()) {
-            case 'uuid':
-                type = 'uuid';
-                break;
-            case 'varchar':
-                if (!paramConfig.length) {
-                    throw new Error(`Parameter '${key}' is missing length in configuration.`);
-                }
-                type = { type: 'VARCHAR', length: paramConfig.length };
                 break;
             case 'text':
                 type = 'text';
